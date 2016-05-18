@@ -1,0 +1,15 @@
+{
+    "name": "image-resizer",
+    "description": "An AWS Lambda function that resizes iamges and outputs thumbnails when uploaded to an S3 Bucket.",
+    "tags": ["stripe", "ecommerce"],
+    "license": "MIT",
+    "author": "Abhi Yerra",
+    "email": "abhi@acksin.com",
+    "archive": "output.zip",
+    "buildCommand": "make build",
+    "readme": "README.md",
+    "branch": "master",
+    "aws": {
+        "policyFiles": []
+    }
+}
