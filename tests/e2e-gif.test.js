@@ -6,17 +6,17 @@ const ImageData    = require("../libs/ImageData");
 const expect  = require("chai").expect;
 const fs      = require("fs");
 const path    = require("path");
-const fixture = fs.readFileSync(path.join(__dirname, "/fixture/fixture.png"), {encoding: "binary"});
+const fixture = fs.readFileSync(path.join(__dirname, "/fixture/fixture.gif"), {encoding: "binary"});
 
-describe("Reduce PNG Test", () => {
+describe("Optimize GIF Test", () => {
     let reducer;
 
     beforeEach(() => {
         reducer = new ImageReducer();
     });
 
-    it("Reduce PNG", (done) => {
-        const image = new ImageData("fixture/fixture.png", "fixture", fixture);
+    it("Optimize GIF", (done) => {
+        const image = new ImageData("fixture/fixture.gif", "fixture", fixture);
 
         reducer.exec(image)
         .then((reduced) => {

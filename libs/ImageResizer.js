@@ -1,63 +1,77 @@
-var ImageData   = require("./ImageData");
+"use strict";
 
-var Promise     = require("es6-promise").Promise;
-var ImageMagick = require("imagemagick");
+const ImageData   = require("./ImageData");
+const gm = require("gm").subClass({ imageMagick: true });
 
-/**
- * Image Resizer
- * resize image with ImageMagick
- *
- * @constructor
- * @param Number width
- */
-function ImageResizer(options) {
-    this.options = options;
-}
+const cropSpec = /(\d+)x(\d+)([+-]\d+)?([+-]\d+)?(%)?/;
 
-/**
- * Execute resize
- *
- * @public
- * @param ImageData image
- * @return Promise
- */
-ImageResizer.prototype.exec = function ImageResizer_exec(image) {
-    var imagetype = image.getType();
-    var params = {
-        srcData:   image.getData().toString("binary"),
-        srcFormat: imagetype,
-        format:    imagetype
-    };
+class ImageResizer {
 
-    var acl = this.options.acl;
-
-    if(this.options.size){
-        params['width'] = this.options.size;
-    }
-    else {
-        if(this.options.width){
-            params['width'] = this.options.width;
-        }
-        if(this.options.height){
-            params['height'] = this.options.height;
-        }
+    /**
+     * Image Resizer
+     * resize image with ImageMagick
+     *
+     * @constructor
+     * @param Number width
+     */
+    constructor(options) {
+        this.options = options;
     }
 
-    return new Promise(function(resolve, reject) {
-        ImageMagick.resize(params, function(err, stdout, stderr) {
-            if ( err || stderr ) {
-                reject("ImageMagick err" + (err || stderr));
+    /**
+     * Execute resize
+     *
+     * @public
+     * @param ImageData image
+     * @return Promise
+     */
+    exec(image) {
+        const acl = this.options.acl;
+
+        return new Promise((resolve, reject) => {
+            console.log("Resizing to: " + (this.options.directory || "in-place"));
+
+            var img = gm(image.data).geometry(this.options.size.toString());
+            if ( "orientation" in this.options ) {
+                img = img.autoOrient();
+            }
+            if ( "gravity" in this.options ) {
+                img = img.gravity(this.options.gravity);
+            }
+            if ( "background" in this.options ) {
+              img = img.background(this.options.background).flatten();
+            }
+            if ( "crop" in this.options ) {
+                var cropArgs = this.options.crop.match(cropSpec);
+                const cropWidth = cropArgs[1];
+                const cropHeight = cropArgs[2];
+                const cropX = cropArgs[3];
+                const cropY = cropArgs[4];
+                const cropPercent = cropArgs[5];
+                img = img.crop(cropWidth, cropHeight, cropX, cropY, cropPercent === "%");
+            }
+
+            function toBufferHandler(err, buffer) {
+                if (err) {
+                    reject(err);
+                } else {
+                    resolve(new ImageData(
+                        image.fileName,
+                        image.bucketName,
+                        buffer,
+                        image.headers,
+                        acl
+                    ));
+                }
+            }
+
+            if ( "format" in this.options ) {
+                img.toBuffer(this.options.format, toBufferHandler);
             } else {
-                resolve(new ImageData(
-                    image.fileName,
-                    image.bucketName,
-                    stdout,
-                    image.getHeaders(),
-                    acl
-                ));
+                img.toBuffer(toBufferHandler);
             }
         });
-    });
-};
+    }
+}
 
 module.exports = ImageResizer;

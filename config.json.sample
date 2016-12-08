@@ -1,20 +1,31 @@
 {
   "bucket": "your-destination-bucket",
   "reduce": {
-      "directory": "reduced"
+      "directory": "./reduced",
+      "quality": 90
   },
   "resizes": [
     {
       "size": 300,
-      "directory": "resized/small"
+      "directory": "./resized/small"
+    },
+    {
+      "size": "600x600^",
+      "gravity": "Center",
+      "crop": "600x600",
+      "directory": "./resized/cropped-to-square",
+			"orientation": true
     },
     {
       "size": 600,
-      "directory": "resized/middle"
+      "directory": "./resized/600-jpeg",
+      "format": "jpg",
+      "background": "white"
     },
     {
       "size": 900,
-      "directory": "resized/large"
+      "directory": "./resized/large",
+      "quality": 90
     }
   ]
 }

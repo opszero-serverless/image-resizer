@@ -37,7 +37,16 @@ try {
 } catch ( e ) {
     stdout.write(red + "Error!\r\n" + reset);
     console.log(e.message);
+    process.exit(1);
 }
+
+stdout.write(magenta + "Checking JPEG optimizer...        " + reset);
+var optimizer = ( config.jpegOptimizer ) ? config.jpegOptimizer : "mozjpeg";
+if ( optimizer !== "jpegoptim" && optimizer !== "mozjpeg" ) {
+    warning.push("[Warning] JPEG Optimizer is invalid. It accepts 'jpegoptim' or 'mozjpeg'.");
+    optimizer = "mozjpeg";
+}
+stdout.write(optimizer + "\r\n");
 
 var bucket = ( config.bucket ) ? config.bucket : "";
 stdout.write(magenta + "Checking destination bucket...    " + reset);
@@ -45,17 +54,48 @@ stdout.write(( bucket ) ? bucket : "[Same bucket]");
 stdout.write("\r\n");
 stdout.write("\r\n");
 
+stdout.write("Backup image configuration\r\n");
+stdout.write("--------------------------------\r\n");
+if ( "backup" in config ) {
+    var backup = config.backup || {};
+    stdout.write(magenta + "    Save bucket:    " + reset);
+    stdout.write(( backup.bucket ) ? backup.bucket : bucket ? bucket : "[Same bucket]");
+    stdout.write("\r\n");
+    stdout.write(magenta + "    Save directory: " + reset);
+    stdout.write(( backup.directory ) ? backup.directory : "[Same directory]");
+    stdout.write("\r\n");
+    if ( ! backup.directory && ! backup.bucket && ! bucket ) {
+        warning.push("Backuped image may save same bucket and directory. This doesn't make any sense.");
+    }
+} else {
+    stdout.write("Backup option is not supplid, skip it.\r\n");
+}
+
+stdout.write("\r\n");
 stdout.write("Reduce image configuration\r\n");
 stdout.write("--------------------------------\r\n");
-var reduce = config.reduce || {};
-stdout.write(magenta + "    Save bucket:    " + reset);
-stdout.write(( reduce.bucket ) ? reduce.bucket : bucket ? bucket : "[Same bucket]");
-stdout.write("\r\n");
-stdout.write(magenta + "    Save directory: " + reset);
-stdout.write(( reduce.directory ) ? reduce.directory : "[Same directory]");
-stdout.write("\r\n");
-if ( ! reduce.directory && ! reduce.bucket && ! bucket ) {
-    warning.push("Reduced image may save same bucket and directory. This causes infinite process AWS-Lambda.");
+if ( "reduce" in config ) {
+    var reduce = config.reduce || {};
+    stdout.write(magenta + "    Save bucket:    " + reset);
+    stdout.write(( reduce.bucket ) ? reduce.bucket : bucket ? bucket : "[Same bucket]");
+    stdout.write("\r\n");
+    stdout.write(magenta + "    Save directory: " + reset);
+    stdout.write(( reduce.directory ) ? reduce.directory : "[Same directory]");
+    stdout.write("\r\n");
+    if ( ! reduce.directory && ! reduce.bucket && ! bucket ) {
+        warning.push("Reduced image may save same bucket and directory. This causes infinite process AWS-Lambda.");
+    }
+    if ( "quality" in reduce ) {
+        if ( reduce.quality < 0 || reduce.quality > 100 ) {
+            warning.push("'quality' option is illigal. this option must be in range 0-100.");
+        } else {
+            stdout.write(magenta + "    Image Quality:  " + reset);
+            stdout.write(reduce.quality + " (JPG Only)");
+            stdout.write("\r\n");
+        }
+    }
+} else {
+    stdout.write("Reduce option is not supplid, skip it.\r\n");
 }
 
 stdout.write("\r\n");
@@ -79,10 +119,19 @@ resizes.forEach(function(resize, index) {
     stdout.write(magenta + "    Save directory: " + reset);
     stdout.write(( resize.directory ) ? resize.directory : "[Same directory]");
     stdout.write("\r\n");
-    stdout.write("\r\n");
     if ( ! resize.directory && ! resize.bucket && ! bucket ) {
         warning.push(" Image will saving same directory. This may cause infinite process loop at AWS-Lambda.");
     }
+    if ( "quality" in resize ) {
+        if ( resize.quality < 0 || resize.quality > 100 ) {
+            warning.push("'quality' option is illigal. this option must be in range 0-100.");
+        } else {
+            stdout.write(magenta + "    Image Quality:  " + reset);
+            stdout.write(resize.quality + " (JPG Only)");
+            stdout.write("\r\n");
+        }
+    }
+    stdout.write("\r\n");
 });
 
 stdout.write("\r\n");
@@ -95,7 +144,7 @@ if ( fatals.length === 0 && warning.length === 0 ) {
         stdout.write(red + "[Fatal] " + f + "\r\n" + reset);
     });
     warning.forEach(function(n) {
-        stdout.write(yellow + "[Warning] " + n + "\r\n" + reset);
+        stdout.write(red + "[Warning] " + n + "\r\n" + reset);
     });
 }
 

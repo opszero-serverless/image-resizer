@@ -1,35 +1,65 @@
-var ImageResizer = require("../libs/ImageResizer");
-var ImageData    = require("../libs/ImageData");
-var ImageMagick  = require("imagemagick");
+"use strict";
 
-var expect     = require("chai").expect;
-var fs         = require("fs");
-var path       = require("path");
-var destPath   = path.join(__dirname, "/fixture/fixture_resized.png");
+const ImageResizer = require("../libs/ImageResizer");
+const ImageData    = require("../libs/ImageData");
+const gm = require("gm").subClass({ imageMagick: true });
 
-describe("Resize PNG Test", function() {
+const expect     = require("chai").expect;
+const fs         = require("fs");
+const path       = require("path");
+const destPath   = path.join(__dirname, "/fixture/fixture_resized.png");
 
-    it("Resize PNG", function(done) {
-        var resizer = new ImageResizer(200);
-        var image = new ImageData(
+describe("Resize PNG Test", () => {
+
+    it("Resize PNG", (done) => {
+        const resizer = new ImageResizer({size: 200});
+        const image = new ImageData(
             "fixture/fixture.png",
             "fixture",
             fs.readFileSync(path.join(__dirname, "/fixture/fixture.png"), {encoding: "binary"})
         );
 
         resizer.exec(image)
-        .then(function(resized) {
-            fs.writeFileSync(destPath, resized.getData(), {encoding: "binary"});
-            ImageMagick.identify(["-format", "%w", destPath], function(err, out) {
+        .then((resized) => {
+            fs.writeFileSync(destPath, resized.data, {encoding: "binary"});
+            gm(destPath).size((err, out) => {
                 if ( err ) {
                     expect.fail();
                 } else {
-                    expect(parseInt(out, 10)).to.equal(200);
+                    expect(out.width).to.equal(200);
                 }
                 fs.unlinkSync(destPath);
                 done();
             });
+        })
+        .catch((err) => {
+            done(err);
         });
+    });
 
+    it("Convert PNG to JPEG", (done) => {
+        const resizer = new ImageResizer({size: 200, format: "jpg"});
+        const image = new ImageData(
+            "fixture/fixture.png",
+            "fixture",
+            fs.readFileSync(path.join(__dirname, "/fixture/fixture.png"), {encoding: "binary"})
+        );
+
+        resizer.exec(image)
+        .then((resized) => {
+            fs.writeFileSync(destPath, resized.data, {encoding: "binary"});
+            gm(destPath).format((err, out) => {
+                if ( err ) {
+                    expect.fail();
+                } else {
+                    expect(out).to.equal("JPEG");
+                }
+                fs.unlinkSync(destPath);
+                done();
+            });
+        })
+        .catch((err) => {
+            done(err);
+        });
     });
 });

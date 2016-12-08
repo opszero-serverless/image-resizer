@@ -1,86 +1,89 @@
-var ImageData      = require("./ImageData");
-var Mozjpeg        = require("./optimizers/Mozjpeg");
-var Pngquant       = require("./optimizers/Pngquant");
-var Pngout         = require("./optimizers/Pngout");
-var ReadableStream = require("./ReadableImageStream");
-var StreamChain    = require("./StreamChain");
+"use strict";
 
-var Promise = require("es6-promise").Promise;
+const ImageData      = require("./ImageData");
+const Mozjpeg        = require("./optimizers/Mozjpeg");
+const Pngquant       = require("./optimizers/Pngquant");
+const Pngout         = require("./optimizers/Pngout");
+const Gifsicle       = require("./optimizers/Gifsicle");
+const ReadableStream = require("./ReadableImageStream");
+const StreamChain    = require("./StreamChain");
+//const JpegOptim    = require("./optimizers/JpegOptim");
 
-/**
- * Image Reducer
- * Accept png/jpeg typed image
- *
- * @constructor
- * @param Object option
- */
-function ImageReducer(option) {
-    this.option = option || {};
-}
+class ImageReducer {
 
-/**
- * Execute process
- *
- * @public
- * @param ImageData image
- * @return Promise
- */
-ImageReducer.prototype.exec = function ImageReducer_exec(image) {
-    var option = this.option;
-
-    return new Promise(function(resolve, reject) {
-        var input   = new ReadableStream(image.getData());
-        var streams = this.createReduceStreams(image.getType());
-        var chain   = new StreamChain(input);
-        var acl = image.getACL();
-
-        chain.pipes(streams).run()
-        .then(function(buffer) {
-            var dir = option.directory || image.getDirName();
-
-            if ( dir ) {
-                dir = dir.replace(/\/$/, "") + "/";
-            }
-
-            resolve(new ImageData(
-                dir + image.getBaseName(),
-                option.bucket || image.bucketName,
-                buffer,
-                image.getHeaders(),
-                acl
-            ));
-        })
-        .catch(function(message) {
-            reject(message);
-        });
-    }.bind(this));
-};
-
-/**
- * Create reduce image streams
- *
- * @protected
- * @param String type
- * @return Array<ChildProcess>
- * @thorws Error
- */
-ImageReducer.prototype.createReduceStreams = function ImageReducer_createReduceStreams(type) {
-    var streams = [];
-
-    switch ( type ) {
-        case "png":
-            streams.push((new Pngquant()).spawnProcess());
-            streams.push((new Pngout()).spawnProcess());
-            break;
-        case "jpg":
-        case "jpeg":
-            streams.push((new Mozjpeg()).spawnProcess());
-            break;
-        default:
-            throw new Error("Unexcepted file type.");
+    /**
+     * Image Reducer
+     * Accept png/jpeg typed image
+     *
+     * @constructor
+     * @param Object option
+     */
+    constructor(option) {
+        this.option = option || {};
     }
 
-    return streams;
-};
+    /**
+     * Execute process
+     *
+     * @public
+     * @param ImageData image
+     * @return Promise
+     */
+    exec(image) {
+        const option = this.option;
+
+        const input   = new ReadableStream(image.data);
+        const streams = this.createReduceProcessList(image.type.toLowerCase());
+        const chain   = new StreamChain(input);
+
+        return chain.pipes(streams).run()
+        .then((buffer) => {
+            return new ImageData(
+                image.combineWithDirectory(option.directory),
+                option.bucket || image.bucketName,
+                buffer,
+                image.headers,
+                image.acl
+            );
+        });
+    };
+
+    /**
+     * Create reduce image process list
+     *
+     * @protected
+     * @param String type
+     * @return Array<Optimizer>
+     * @thorws Error
+     */
+    createReduceProcessList(type) {
+        console.log("Reducing to: " + (this.option.directory || "in-place"));
+
+        const streams = [];
+
+        switch ( type ) {
+            case "png":
+                streams.push(new Pngquant());
+                streams.push(new Pngout());
+                break;
+            case "jpg":
+            case "jpeg":
+                streams.push(new Mozjpeg(this.option.quality));
+                // switch JPEG optimizer
+                //if ( this.option.jpegOptimizer === "jpegoptim" ) { // using jpegoptim
+                //    streams.push(new JpegOptim());
+                //} else {                                           // using mozjpeg
+                //}
+                break;
+            case "gif":
+                streams.push(new Gifsicle());
+                break;
+            default:
+                throw new Error("Unexcepted file type.");
+        }
+
+        return streams;
+    }
+}
 
 module.exports = ImageReducer;
